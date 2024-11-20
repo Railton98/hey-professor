@@ -1,0 +1,48 @@
+<?php
+
+use App\Models\{Question, User};
+
+use function Pest\Laravel\{actingAs, assertDatabaseCount, assertDatabaseHas};
+
+it('should be able to create a new question bigger than 255 characters', function () {
+    $user = User::factory()->create();
+
+    actingAs($user)
+        ->post(route('question.store'), [
+            'question' => str_repeat('*', 260) . '?',
+        ])
+        ->assertRedirect(route('dashboard'));
+
+    assertDatabaseCount(Question::class, 1);
+    assertDatabaseHas(Question::class, [
+        'question' => str_repeat('*', 260) . '?',
+    ]);
+});
+
+it('should check if ends with question mark ?', function () {
+    $user = User::factory()->create();
+
+    actingAs($user)
+        ->post(route('question.store'), [
+            'question' => str_repeat('*', 8) . '?',
+        ])
+        ->assertSessionHasErrors([
+            'question' => __('validation.min.string', ['min' => 10, 'attribute' => 'question']),
+        ]);
+
+    assertDatabaseCount(Question::class, 0);
+});
+
+it('should have at least 10 characters', function () {
+    $user = User::factory()->create();
+
+    actingAs($user)
+        ->post(route('question.store'), [
+            'question' => str_repeat('*', 10),
+        ])
+        ->assertSessionHasErrors([
+            'question' => 'Are you sure that is a question? It is missing the question mark in the end.',
+        ]);
+
+    assertDatabaseCount(Question::class, 0);
+});
